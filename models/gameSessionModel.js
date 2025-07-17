@@ -80,6 +80,12 @@ const gameSessionSchema = new mongoose.Schema(
         min: 2,
         max: 50,
       },
+      maxPointsPerQuestion: {
+        type: Number,
+        required: true,
+        min: 100,
+        max: 1000,
+      },
       isPublic: {
         type: Boolean,
         default: true,
@@ -100,6 +106,7 @@ const gameSessionSchema = new mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: "User",
           },
+          username: String,
           rank: Number,
           score: Number,
           correctAnswers: Number,
@@ -114,6 +121,10 @@ const gameSessionSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+gameSessionSchema.index({ gameCode: 1 });
+gameSessionSchema.index({ createdAt: -1 });
+gameSessionSchema.index({ hostId: 1 });
 
 //===>Schema Methods for better handling of actions
 
@@ -156,26 +167,91 @@ gameSessionSchema.methods.removeParticipant = function (userId) {
   return this;
 };
 
+//=> Submit answer of user
 gameSessionSchema.methods.submitAnswer = function (
   userId,
   questionId,
   answer,
+  isCorrect,
   timeTaken,
 ) {
-  const participant = this.participants.find(
+  const participantIndex = this.participants.findIndex(
     (p) => p.userId.toString() === userId.toString(),
   );
-  if (!participant) {
-    throw new Error("Participant not found");
-  }
 
-  // Check if already answered this question
-  const existingAnswer = participant.answers.find(
-    (a) => a.questionId.toString() === questionId.toString(),
-  );
-  if (existingAnswer) {
-    throw new Error("Already answered this question");
-  }
+  const score = isCorrect
+    ? ((this.settings.maxPointsPerQuestion - timeTaken) /
+        this.settings.maxPointsPerQuestion) *
+      this.settings.maxPointsPerQuestion
+    : 0;
 
-  return participant;
+  const userSubmittedAnswer = {
+    questionId,
+    answer,
+    isCorrect,
+    timeTaken,
+    points: score,
+  };
+
+  this.participants[participantIndex].answers.push(userSubmittedAnswer);
+  this.participants[participantIndex].score += score;
+  this.save();
+
+  return this;
 };
+
+//=> Calculate leaderboard
+gameSessionSchema.methods.calculateLeaderboard = function () {
+  const leaderboard = this.participants
+    .map((p) => ({
+      userId: p.userId,
+      username: p.username,
+      score: p.score,
+      correctAnswers: p.answers.filter((ans) => ans.isCorrect).length,
+      avgResponseTime:
+        p.answers.reduce((sum, ans) => sum + ans.timeTaken, 0) /
+        p.answers.length,
+    }))
+    .sort((a, b) => {
+      if (a.score === b.score) return b.avgResponseTime - a.avgResponseTime;
+      return a.score - b.score;
+    })
+    .map((ans, index) => {
+      return {
+        ...ans,
+        rank: index + 1,
+      };
+    });
+
+  this.results.leaderboard = leaderboard;
+  if (leaderboard.length > 0) {
+    this.results.winner = leaderboard[0].userId;
+  }
+
+  return this.save();
+};
+
+//=>Get total active participants
+gameSessionSchema.methods.getActiveParticipants = function () {
+  return this.participants.filter((p) => p.isActive);
+};
+
+//=> Static method for game code
+gameSessionSchema.statics.generateGameCode = async function () {
+  const characters = "0123456789";
+  let gameCode;
+  let exists = true;
+
+  while (exists) {
+    gameCode = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+
+    const existingGame = await this.findOne({ gameCode });
+    exists = !!existingGame;
+  }
+
+  return gameCode;
+};
+
+const GameSession = mongoose.model("GameSession", gameSessionSchema);
+
+module.exports = GameSession;

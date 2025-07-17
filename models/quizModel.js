@@ -93,6 +93,13 @@ const quizSchema = new mongoose.Schema(
   },
 );
 
+quizSchema.index({ creator: 1, visibility: 1 });
+quizSchema.index({ category: 1, difficulty: 1 });
+quizSchema.index({ "stats.timesPlayed": -1 });
+quizSchema.index({ createdAt: -1 });
+quizSchema.index({ tags: 1 });
+
+//=> update quiz stats
 quizSchema.methods.updateStats = function (totalGameScore, numOfUserPlayed) {
   this.stats.timesPlayed += 1;
   this.stats.totalUserPlayed += numOfUserPlayed;
@@ -105,6 +112,7 @@ quizSchema.methods.updateStats = function (totalGameScore, numOfUserPlayed) {
   return this.save();
 };
 
+//=> randomized all question
 quizSchema.methods.getRandomizedQuestions = function () {
   if (this.settings.questionOrder === "random") {
     const shuffled = [...this.questions];
@@ -116,12 +124,6 @@ quizSchema.methods.getRandomizedQuestions = function () {
   }
   return this.questions;
 };
-
-quizSchema.index({ creator: 1, visibility: 1 });
-quizSchema.index({ category: 1, difficulty: 1 });
-quizSchema.index({ "stats.timesPlayed": -1 });
-quizSchema.index({ createdAt: -1 });
-quizSchema.index({ tags: 1 });
 
 const Quiz = mongoose.model("Quiz", quizSchema);
 

@@ -10,6 +10,9 @@ const cookieParser = require("cookie-parser");
 const compression = require("compression");
 
 const userRouter = require("./routes/userRoutes");
+const questionRouter = require("./routes/questionRoutes");
+const quizRouter = require("./routes/quizRoutes");
+const gameSessionRouter = require("./routes/gameSessionRoutes");
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 
@@ -71,6 +74,9 @@ app.use(
 
 //Routes ---------------------------------------------------------------
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/questions", questionRouter);
+app.use("/api/v1/quiz", quizRouter);
+app.use("/api/v1/game", gameSessionRouter);
 
 //set default route
 app.all("*", (req, res, next) => {
