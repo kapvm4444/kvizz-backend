@@ -78,6 +78,12 @@ app.use("/api/v1/questions", questionRouter);
 app.use("/api/v1/quiz", quizRouter);
 app.use("/api/v1/game", gameSessionRouter);
 
+app.use("/", (req, res, next) => {
+  res.end(
+    "Welcome to Kvizz api page. Obviously if you are not a developer, you wont get anything ;) ",
+  );
+});
+
 //set default route
 app.all("*", (req, res, next) => {
   next(

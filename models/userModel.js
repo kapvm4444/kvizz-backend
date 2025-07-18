@@ -102,7 +102,6 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.index({ email: 1 });
 userSchema.index({ "stats.totalScore": -1 });
 userSchema.index({ createdAt: -1 });
 

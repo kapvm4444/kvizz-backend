@@ -18,10 +18,24 @@ const gameSessionSchema = new mongoose.Schema(
       uppercase: true,
       length: 6,
     },
+    //for socket connection
+    connectionId: String,
     status: {
       type: String,
       enum: ["waiting", "playing", "finished"],
       default: "waiting",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    currentQuestionIndex: {
+      type: Number,
+      default: 0,
+    },
+    questionsAnswered: {
+      type: Number,
+      default: 0,
     },
     participants: [
       {
@@ -33,6 +47,10 @@ const gameSessionSchema = new mongoose.Schema(
         score: {
           type: Number,
           default: 0,
+        },
+        isActive: {
+          type: Boolean,
+          default: true,
         },
         answers: [
           {
@@ -90,10 +108,6 @@ const gameSessionSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
-      allowLateJoin: {
-        type: Boolean,
-        default: false,
-      },
     },
     results: {
       winner: {
@@ -122,7 +136,6 @@ const gameSessionSchema = new mongoose.Schema(
   },
 );
 
-gameSessionSchema.index({ gameCode: 1 });
 gameSessionSchema.index({ createdAt: -1 });
 gameSessionSchema.index({ hostId: 1 });
 
