@@ -34,24 +34,6 @@ const quizSchema = new mongoose.Schema(
     },
     category: String,
     tags: [String],
-    settings: {
-      timePerQuestion: {
-        type: Number,
-        default: 30,
-        min: 10,
-        max: 300,
-      },
-      questionOrder: {
-        type: String,
-        enum: ["fixed", "random"],
-        default: "fixed",
-      },
-      pointsPerQuestion: {
-        type: Number,
-        min: 100,
-        max: 4000,
-      },
-    },
     stats: {
       timesPlayed: {
         type: Number,

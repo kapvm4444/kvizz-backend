@@ -89,3 +89,13 @@ exports.deleteOne = (Model) =>
       data: null,
     });
   });
+
+exports.createAndReturnOne = async (Model, body) => {
+  const doc = await Model.create(body);
+  return doc;
+};
+
+exports.returnOne = async (Model, data) => {
+  const doc = await Model.find({ gameCode: data });
+  return doc;
+};

@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       validate: {
         validator: function (val) {
-          return val.length === 10;
+          return val && val.length === 10 && /^\d+$/.test(val);
         },
       },
     },
@@ -68,10 +68,18 @@ const userSchema = new mongoose.Schema(
         default: 0,
       },
     },
-    ownedQuizzes: {
-      type: [mongoose.Schema.ObjectId],
-      ref: "Quiz",
-    },
+    ownedQuizzes: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "Quiz",
+      },
+    ],
+    playedQuiz: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "GameSession",
+      },
+    ],
     active: {
       type: Boolean,
       default: true,
@@ -88,11 +96,6 @@ const userSchema = new mongoose.Schema(
       darkMode: {
         type: Boolean,
         default: false,
-      },
-      profileVisibility: {
-        type: String,
-        enum: ["private", "public"],
-        required: true,
       },
     },
   },

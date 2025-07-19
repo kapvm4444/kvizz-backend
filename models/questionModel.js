@@ -1,11 +1,6 @@
 const mongoose = require("mongoose");
 const questionSchema = new mongoose.Schema(
   {
-    quizId: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Question",
-      required: true,
-    },
     type: {
       type: String,
       enum: ["multiple", "single", "open", "reorder", "trueFalse"],
@@ -17,6 +12,7 @@ const questionSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    funFact: String,
     options: [
       {
         type: String,
@@ -45,11 +41,6 @@ const questionSchema = new mongoose.Schema(
     createdAt: {
       type: Date,
       default: Date.now(),
-    },
-    createdBy: {
-      type: mongoose.Schema.ObjectId,
-      ref: "User",
-      required: true,
     },
   },
   {

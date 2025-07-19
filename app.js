@@ -27,8 +27,6 @@ app.use(
   }),
 );
 
-app.enable("trust proxy");
-
 //Using the "express.static()" middleware for accessing the static file in the file system (server)
 //serving static files
 app.use(express.static(`${__dirname}/public`));
@@ -46,13 +44,13 @@ app.use(compression());
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
 //API Rate limiter
-const limiter = rateLimit({
-  max: 100,
-  windowMs: 60 * 60 * 1000,
-  message:
-    "Too many requests from this IP, please wait for a few hour before you log in again",
-});
-app.use("/api", limiter);
+// const limiter = rateLimit({
+//   max: 100,
+//   windowMs: 60 * 60 * 1000,
+//   message:
+//     "Too many requests from this IP, please wait for a few hour before you log in again",
+// });
+// app.use("/api", limiter);
 
 //body parser - reading data from req.body
 app.use(express.json({ limit: "10kb" }));
@@ -75,8 +73,8 @@ app.use(
 //Routes ---------------------------------------------------------------
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/questions", questionRouter);
-app.use("/api/v1/quiz", quizRouter);
-app.use("/api/v1/game", gameSessionRouter);
+app.use("/api/v1/quizzes", quizRouter);
+app.use("/api/v1/games", gameSessionRouter);
 
 app.use("/", (req, res, next) => {
   res.end(

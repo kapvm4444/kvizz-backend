@@ -8,6 +8,7 @@ const socketService = require("./socket/SocketService");
 process.on("uncaughtException", (err) => {
   console.log("UNHANDLED EXCEPTION ERROR 💥");
   console.log(err.name, "=>", err.message);
+  console.log(err.stack);
   process.exit(1);
 });
 

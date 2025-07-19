@@ -15,8 +15,8 @@ const gameSessionSchema = new mongoose.Schema(
       type: Number,
       required: true,
       unique: true,
-      uppercase: true,
-      length: 6,
+      min: 100000,
+      max: 999999,
     },
     //for socket connection
     connectionId: String,
@@ -29,14 +29,6 @@ const gameSessionSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    currentQuestionIndex: {
-      type: Number,
-      default: 0,
-    },
-    questionsAnswered: {
-      type: Number,
-      default: 0,
-    },
     participants: [
       {
         userId: {
@@ -44,6 +36,7 @@ const gameSessionSchema = new mongoose.Schema(
           ref: "User",
         },
         username: String,
+        isGuest: Boolean,
         score: {
           type: Number,
           default: 0,
@@ -98,11 +91,18 @@ const gameSessionSchema = new mongoose.Schema(
         min: 2,
         max: 50,
       },
+      timePerQuestion: {
+        type: Number,
+        default: 30,
+        min: 10,
+        max: 300,
+      },
       maxPointsPerQuestion: {
         type: Number,
         required: true,
+        default: 100,
         min: 100,
-        max: 1000,
+        max: 4000,
       },
       isPublic: {
         type: Boolean,
@@ -132,6 +132,8 @@ const gameSessionSchema = new mongoose.Schema(
     finishedAt: Date,
   },
   {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
     timestamps: true,
   },
 );
@@ -143,10 +145,15 @@ gameSessionSchema.index({ hostId: 1 });
 
 //=> Add Participant
 gameSessionSchema.methods.addParticipant = function (userId, username) {
+  let isGuest = false;
   const existingParticipant = this.participants.find(
     (p) => p.userId.toString() === userId.toString(),
   );
-  if (existingParticipant) {
+
+  if (!userId) {
+    userId = null;
+    isGuest = true;
+  } else if (existingParticipant) {
     throw new Error(
       "You have already Joined this game try to access that device",
     );
@@ -159,6 +166,7 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
   this.participants.push({
     userId,
     username,
+    isGuest,
     score: 0,
     answers: [],
     joinedAt: new Date(),
@@ -169,10 +177,11 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
 };
 
 //=>Remove participants
-gameSessionSchema.methods.removeParticipant = function (userId) {
-  const participantIndex = this.participants.findIndex(
-    (p) => p.userId.toString() === userId.toString(),
-  );
+gameSessionSchema.methods.removeParticipant = function (userId, username) {
+  const participantIndex = this.participants.findIndex((p) => {
+    if (!userId) return p.username.toString() === username.toString();
+    return p.userId.toString() === userId.toString();
+  });
   if (participantIndex > -1) {
     this.participants[participantIndex].isActive = false;
     return this.save();
@@ -251,7 +260,6 @@ gameSessionSchema.methods.getActiveParticipants = function () {
 
 //=> Static method for game code
 gameSessionSchema.statics.generateGameCode = async function () {
-  const characters = "0123456789";
   let gameCode;
   let exists = true;
 
@@ -263,6 +271,22 @@ gameSessionSchema.statics.generateGameCode = async function () {
   }
 
   return gameCode;
+};
+
+gameSessionSchema.statics.generateConnectionString = async function () {
+  let connectionId;
+  let exists = true;
+
+  while (exists) {
+    connectionId = Math.random()
+      .toString(36)
+      .substring(2, 2 + 12);
+
+    const existingGame = await this.findOne({ connectionId });
+    exists = !!existingGame;
+  }
+
+  return connectionId;
 };
 
 const GameSession = mongoose.model("GameSession", gameSessionSchema);
