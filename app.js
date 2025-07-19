@@ -8,6 +8,13 @@ const hpp = require("hpp");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
+const obscenity = require("obscenity");
+const {
+  TextCensor,
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+} = require("obscenity");
 
 const userRouter = require("./routes/userRoutes");
 const questionRouter = require("./routes/questionRoutes");
@@ -67,6 +74,32 @@ app.use(
   //-------^----
   //if want to allow any fields for duplication use "whitelist: [<string-array-of-name-of-attributes>]" and pass as an object inside hpp arguments
 );
+
+const censor = new TextCensor();
+const matcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+});
+
+//=> cleaner for filtering abusive words
+const cleaner = (obj) => {
+  for (const key in obj) {
+    if (typeof obj[key] === "string") {
+      const input = obj[key];
+      const matches = matcher.getAllMatches(input);
+      obj[key] = censor.applyTo(input, matches);
+    } else if (typeof obj[key] === "object" && obj[key] !== null) {
+      cleaner(obj[key]);
+    }
+  }
+};
+
+app.use((req, res, next) => {
+  if (req.body) {
+    cleaner(req.body);
+  }
+  next();
+});
 
 // 2) Route Handlers and methods -------------------------------------------
 

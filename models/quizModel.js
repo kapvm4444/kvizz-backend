@@ -22,11 +22,6 @@ const quizSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    visibility: {
-      type: String,
-      enum: ["public", "private"],
-      default: "public",
-    },
     type: {
       type: String,
       enum: ["manual", "ai-generated"],
@@ -47,11 +42,6 @@ const quizSchema = new mongoose.Schema(
         type: Number,
       },
     },
-    participantLimit: {
-      type: Number,
-      min: 2,
-      max: 50,
-    },
     difficulty: {
       type: String,
       enum: ["easy", "medium", "hard"],
@@ -64,6 +54,11 @@ const quizSchema = new mongoose.Schema(
     updatedAt: {
       type: Date,
     },
+    questionOrder: {
+      type: String,
+      enum: ["random", "fixed"],
+      default: "fixed",
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -75,11 +70,24 @@ const quizSchema = new mongoose.Schema(
   },
 );
 
-quizSchema.index({ creator: 1, visibility: 1 });
+quizSchema.index({ creator: 1 });
 quizSchema.index({ category: 1, difficulty: 1 });
 quizSchema.index({ "stats.timesPlayed": -1 });
 quizSchema.index({ createdAt: -1 });
 quizSchema.index({ tags: 1 });
+
+//=> Middlewares
+quizSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "questions",
+    select: "-createdAt -__v -quizId",
+  }).populate({
+    path: "creator",
+    select: "name photo",
+  });
+
+  next();
+});
 
 //=> update quiz stats
 quizSchema.methods.updateStats = function (totalGameScore, numOfUserPlayed) {

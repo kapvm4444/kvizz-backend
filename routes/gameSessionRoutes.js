@@ -17,4 +17,11 @@ router
   .patch(gameSessionController.updateGameSession)
   .delete(gameSessionController.deleteGameSession);
 
+router
+  .route("/explore")
+  .get(
+    gameSessionController.filterPublicQuizzes,
+    gameSessionController.getGameSessions,
+  );
+
 module.exports = router;

@@ -141,6 +141,16 @@ const gameSessionSchema = new mongoose.Schema(
 gameSessionSchema.index({ createdAt: -1 });
 gameSessionSchema.index({ hostId: 1 });
 
+//=> Middlewares
+
+//=> Pre population
+gameSessionSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "results.winner",
+    select: "username photo",
+  });
+});
+
 //===>Schema Methods for better handling of actions
 
 //=> Add Participant

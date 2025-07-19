@@ -21,8 +21,9 @@ const userSchema = new mongoose.Schema(
       type: Number,
       validate: {
         validator: function (val) {
-          return val && val.length === 10 && /^\d+$/.test(val);
+          return /^\d{10}$/.test(val);
         },
+        message: "Enter a valid mobile number",
       },
     },
     username: String,

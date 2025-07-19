@@ -34,10 +34,6 @@ const questionSchema = new mongoose.Schema(
       type: String,
       enum: ["image", "audio", "video"],
     },
-    order: {
-      type: Number,
-      required: true,
-    },
     createdAt: {
       type: Date,
       default: Date.now(),
@@ -51,6 +47,13 @@ const questionSchema = new mongoose.Schema(
 
 questionSchema.index({ quizId: 1, order: 1 });
 questionSchema.index({ type: 1 });
+
+// => Virtual fields
+questionSchema.virtual("quizId", {
+  ref: "Quiz",
+  foreignField: "questions",
+  localField: "_id",
+});
 
 const Question = mongoose.model("Question", questionSchema);
 

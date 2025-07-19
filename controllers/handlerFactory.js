@@ -6,7 +6,10 @@ const APIFeatures = require("../utils/apiFeatures");
 // Getter [All] Factory Function - Gets a data of "Model"s Data
 exports.getAll = (Model) =>
   catchAsync(async (req, res, next) => {
-    const features = new APIFeatures(Model.find(), req.query)
+    let filter = {};
+    if (req.params.userId) filter = { ...filter, creator: req.params.userId };
+
+    const features = new APIFeatures(Model.find(filter), req.query)
       .filter()
       .sort()
       .paginate()
