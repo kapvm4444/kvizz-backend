@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+
 const gameSessionSchema = new mongoose.Schema(
   {
     quizId: {
@@ -134,7 +135,6 @@ const gameSessionSchema = new mongoose.Schema(
   {
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-    timestamps: true,
   },
 );
 
@@ -264,38 +264,34 @@ gameSessionSchema.methods.calculateLeaderboard = function () {
 };
 
 //=>Get total active participants
-gameSessionSchema.methods.getActiveParticipants = function () {
-  return this.participants.filter((p) => p.isActive);
-};
-
-//=> Static method for game code
 gameSessionSchema.statics.generateGameCode = async function () {
-  let gameCode;
-  let exists = true;
+  console.log("🎲 Generating timestamp-based game code...");
 
-  while (exists) {
-    gameCode = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+  // Use current timestamp + random number
+  const now = Date.now();
+  const random = Math.floor(Math.random() * 9999);
 
-    const existingGame = await this.findOne({ gameCode });
-    exists = !!existingGame;
-  }
+  // Take last 2 digits of timestamp + 4-digit random = 6 digits
+  const timeComponent = now.toString().slice(-2);
+  const randomComponent = random.toString().padStart(4, "0");
+  const gameCode = parseInt(timeComponent + randomComponent);
 
-  return gameCode;
+  // Ensure it's in valid range
+  const finalCode = Math.max(100000, Math.min(999999, gameCode));
+
+  console.log(`✅ Generated unique code: ${finalCode}`);
+  return finalCode;
 };
 
+//=> generate connection string
 gameSessionSchema.statics.generateConnectionString = async function () {
-  let connectionId;
-  let exists = true;
+  console.log("🔗 Generating timestamp-based connection string...");
 
-  while (exists) {
-    connectionId = Math.random()
-      .toString(36)
-      .substring(2, 2 + 12);
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  const connectionId = timestamp + random;
 
-    const existingGame = await this.findOne({ connectionId });
-    exists = !!existingGame;
-  }
-
+  console.log(`✅ Generated connection ID: ${connectionId}`);
   return connectionId;
 };
 

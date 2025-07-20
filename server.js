@@ -21,7 +21,17 @@ const DB =
     : process.env.DATABASE_LOCAL;
 
 mongoose
-  .connect(DB)
+  .connect(DB, {
+    useCreateIndex: true,
+    useNewUrlParser: true,
+    useFindAndModify: false,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000, // Fast-fail if Mongo is down
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 10000,
+    bufferCommands: false, // No query buffering!
+  })
+
   .then((con) =>
     console.log(
       process.env.DATABASE_TYPE.toUpperCase() +

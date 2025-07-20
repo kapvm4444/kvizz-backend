@@ -1,7 +1,8 @@
 const express = require("express");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 
 const quizController = require("./../controllers/quizController");
-const questionRouter = require("./questionRoutes");
 
 const router = express.Router();
 
@@ -25,6 +26,16 @@ router.route("/of/:userId").get(quizController.getQuizzes);
 router.route("/save").post(quizController.saveQuestions);
 
 router.route("/update").patch(quizController.updateQuizWithQuestions);
+
+router.route("/generate/prompt").post(quizController.generateQuizFromPrompt);
+
+router
+  .route("/generate/csv")
+  .post(upload.single("file"), quizController.generateQuizFromCsv);
+
+router
+  .route("/generate/pdf")
+  .post(upload.single("file"), quizController.generateQuizFromPdf);
 
 module.exports = router;
 

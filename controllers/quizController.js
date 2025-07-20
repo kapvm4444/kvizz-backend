@@ -1,7 +1,83 @@
+const axios = require("axios");
+const FormData = require("form-data");
+const fs = require("fs");
+
 const Quiz = require("./../models/quizModel");
 const Question = require("./../models/questionModel");
 
 const factory = require("./handlerFactory");
+
+const PYTHON_SERVER_URL = "http://localhost:4000";
+
+//=> Generate from a prompt
+exports.generateQuizFromPrompt = async (req, res) => {
+  try {
+    const { prompt, ...quizData } = req.body;
+    if (!prompt) {
+      return res
+        .status(400)
+        .json({ status: "fail", message: "Prompt is required." });
+    }
+    const response = await axios.post(`${PYTHON_SERVER_URL}/from-prompt`, {
+      prompt,
+    });
+    const questionDocs = await Question.insertMany(response.data.questions);
+    const questionIds = questionDocs.map((q) => q._id);
+    const quiz = await Quiz.create({ ...quizData, questions: questionIds });
+    const populatedQuiz = await Quiz.findById(quiz._id).populate("questions");
+    res.status(201).json({ status: "success", data: { quiz: populatedQuiz } });
+  } catch (err) {
+    res.status(400).json({ status: "fail", message: err.message });
+  }
+};
+
+//=> Generate quiz from PDF file
+exports.generateQuizFromPdf = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ status: "fail", message: "PDF file is required." });
+    }
+    const form = new FormData();
+    form.append("file", fs.createReadStream(req.file.path));
+    const response = await axios.post(`${PYTHON_SERVER_URL}/from-pdf`, form, {
+      headers: form.getHeaders(),
+    });
+    const { questions, ...quizData } = req.body;
+    const questionDocs = await Question.insertMany(response.data.questions);
+    const questionIds = questionDocs.map((q) => q._id);
+    const quiz = await Quiz.create({ ...quizData, questions: questionIds });
+    const populatedQuiz = await Quiz.findById(quiz._id).populate("questions");
+    res.status(201).json({ status: "success", data: { quiz: populatedQuiz } });
+  } catch (err) {
+    res.status(400).json({ status: "fail", message: err.message });
+  }
+};
+
+//=> Generate quiz from CSV file
+exports.generateQuizFromCsv = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ status: "fail", message: "CSV file is required." });
+    }
+    const form = new FormData();
+    form.append("file", fs.createReadStream(req.file.path));
+    const response = await axios.post(`${PYTHON_SERVER_URL}/from-csv`, form, {
+      headers: form.getHeaders(),
+    });
+    const { questions, ...quizData } = req.body;
+    const questionDocs = await Question.insertMany(response.data.questions);
+    const questionIds = questionDocs.map((q) => q._id);
+    const quiz = await Quiz.create({ ...quizData, questions: questionIds });
+    const populatedQuiz = await Quiz.findById(quiz._id).populate("questions");
+    res.status(201).json({ status: "success", data: { quiz: populatedQuiz } });
+  } catch (err) {
+    res.status(400).json({ status: "fail", message: err.message });
+  }
+};
 
 exports.saveQuestions = async (req, res, next) => {
   try {
