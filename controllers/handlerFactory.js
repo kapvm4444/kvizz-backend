@@ -8,6 +8,8 @@ exports.getAll = (Model) =>
   catchAsync(async (req, res, next) => {
     let filter = {};
     if (req.params.userId) filter = { ...filter, creator: req.params.userId };
+    if (req.params.filterPublic)
+      filter = { ...filter, ...req.params.filterPublic };
 
     const features = new APIFeatures(Model.find(filter), req.query)
       .filter()

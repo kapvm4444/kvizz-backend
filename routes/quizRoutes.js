@@ -6,6 +6,34 @@ const quizController = require("./../controllers/quizController");
 
 const router = express.Router();
 
+//=>get questions of particular quiz
+router.route("/:id/questions").get(quizController.getQuizQuestions);
+
+//=> get user specific quizzes
+router.route("/of/:userId").get(quizController.getQuizzes);
+
+//=> create and save the quiz along with questions
+router.route("/do/save").post(quizController.saveQuestions);
+
+//=> update and save the quiz along with updated questions
+router.route("/do/update").patch(quizController.updateQuizWithQuestions);
+
+//=> delete the quiz along with the questions
+router.route("/do/delete/:id").delete(quizController.deleteQuizWithQuestions);
+
+//=> generate the quiz with ai prompt
+router.route("/generate/prompt").post(quizController.generateQuizFromPrompt);
+
+//=> generate the quiz with a csv file (ai based)
+router
+  .route("/generate/csv")
+  .post(upload.single("file"), quizController.generateQuizFromCsv);
+
+//=> generate a quiz from a pdf (ai based)
+router
+  .route("/generate/pdf")
+  .post(upload.single("file"), quizController.generateQuizFromPdf);
+
 //Routes for creating and getting all
 router
   .route("/")
@@ -18,24 +46,6 @@ router
   .get(quizController.getQuiz)
   .patch(quizController.updateQuiz)
   .delete(quizController.deleteQuiz);
-
-router.route("/:id/questions").get(quizController.getQuizQuestions);
-
-router.route("/of/:userId").get(quizController.getQuizzes);
-
-router.route("/save").post(quizController.saveQuestions);
-
-router.route("/update").patch(quizController.updateQuizWithQuestions);
-
-router.route("/generate/prompt").post(quizController.generateQuizFromPrompt);
-
-router
-  .route("/generate/csv")
-  .post(upload.single("file"), quizController.generateQuizFromCsv);
-
-router
-  .route("/generate/pdf")
-  .post(upload.single("file"), quizController.generateQuizFromPdf);
 
 module.exports = router;
 

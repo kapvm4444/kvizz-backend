@@ -42,10 +42,6 @@ const gameSessionSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
-        isActive: {
-          type: Boolean,
-          default: true,
-        },
         answers: [
           {
             questionId: {
@@ -111,10 +107,6 @@ const gameSessionSchema = new mongoose.Schema(
       },
     },
     results: {
-      winner: {
-        type: mongoose.Schema.ObjectId,
-        ref: "User",
-      },
       leaderboard: [
         {
           userId: {
@@ -128,6 +120,10 @@ const gameSessionSchema = new mongoose.Schema(
           avgResponseTime: Number,
         },
       ],
+    },
+    createdAt: {
+      type: Date,
+      default: new Date(),
     },
     startedAt: Date,
     finishedAt: Date,
@@ -146,9 +142,14 @@ gameSessionSchema.index({ hostId: 1 });
 //=> Pre population
 gameSessionSchema.pre(/^find/, function (next) {
   this.populate({
-    path: "results.winner",
-    select: "username photo",
+    path: "quizId",
+    select: "title description category",
+  }).populate({
+    path: "hostId",
+    select: "name photo",
   });
+
+  next();
 });
 
 //===>Schema Methods for better handling of actions
@@ -156,9 +157,12 @@ gameSessionSchema.pre(/^find/, function (next) {
 //=> Add Participant
 gameSessionSchema.methods.addParticipant = function (userId, username) {
   let isGuest = false;
-  const existingParticipant = this.participants.find(
-    (p) => p.userId.toString() === userId.toString(),
-  );
+
+  let existingParticipant;
+  if (userId)
+    existingParticipant = this.participants.find(
+      (p) => p.userId.toString() === userId.toString(),
+    );
 
   if (!userId) {
     userId = null;
@@ -193,7 +197,7 @@ gameSessionSchema.methods.removeParticipant = function (userId, username) {
     return p.userId.toString() === userId.toString();
   });
   if (participantIndex > -1) {
-    this.participants[participantIndex].isActive = false;
+    this.participants.splice(participantIndex, 1);
     return this.save();
   }
   return this;
@@ -201,20 +205,23 @@ gameSessionSchema.methods.removeParticipant = function (userId, username) {
 
 //=> Submit answer of user
 gameSessionSchema.methods.submitAnswer = function (
-  userId,
+  username,
   questionId,
   answer,
   isCorrect,
   timeTaken,
 ) {
-  const participantIndex = this.participants.findIndex(
-    (p) => p.userId.toString() === userId.toString(),
-  );
+  const participantIndex = this.participants.findIndex((p) => {
+    return p.username.toString() === username.toString();
+  });
 
+  const totalTimePerQuestionInMs = this.settings.timePerQuestion * 1000;
+  const timeLeft = totalTimePerQuestionInMs - timeTaken;
   const score = isCorrect
-    ? ((this.settings.maxPointsPerQuestion - timeTaken) /
-        this.settings.maxPointsPerQuestion) *
-      this.settings.maxPointsPerQuestion
+    ? Math.round(
+        (timeLeft / totalTimePerQuestionInMs) *
+          this.settings.maxPointsPerQuestion,
+      )
     : 0;
 
   const userSubmittedAnswer = {
@@ -227,7 +234,7 @@ gameSessionSchema.methods.submitAnswer = function (
 
   this.participants[participantIndex].answers.push(userSubmittedAnswer);
   this.participants[participantIndex].score += score;
-  this.save();
+  // this.save();
 
   return this;
 };
@@ -236,13 +243,13 @@ gameSessionSchema.methods.submitAnswer = function (
 gameSessionSchema.methods.calculateLeaderboard = function () {
   const leaderboard = this.participants
     .map((p) => ({
-      userId: p.userId,
+      userId: p.userId || null,
       username: p.username,
       score: p.score,
       correctAnswers: p.answers.filter((ans) => ans.isCorrect).length,
       avgResponseTime:
         p.answers.reduce((sum, ans) => sum + ans.timeTaken, 0) /
-        p.answers.length,
+          p.answers.length || 0,
     }))
     .sort((a, b) => {
       if (a.score === b.score) return b.avgResponseTime - a.avgResponseTime;
@@ -265,8 +272,6 @@ gameSessionSchema.methods.calculateLeaderboard = function () {
 
 //=>Get total active participants
 gameSessionSchema.statics.generateGameCode = async function () {
-  console.log("🎲 Generating timestamp-based game code...");
-
   // Use current timestamp + random number
   const now = Date.now();
   const random = Math.floor(Math.random() * 9999);
@@ -279,19 +284,15 @@ gameSessionSchema.statics.generateGameCode = async function () {
   // Ensure it's in valid range
   const finalCode = Math.max(100000, Math.min(999999, gameCode));
 
-  console.log(`✅ Generated unique code: ${finalCode}`);
   return finalCode;
 };
 
 //=> generate connection string
 gameSessionSchema.statics.generateConnectionString = async function () {
-  console.log("🔗 Generating timestamp-based connection string...");
-
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
   const connectionId = timestamp + random;
 
-  console.log(`✅ Generated connection ID: ${connectionId}`);
   return connectionId;
 };
 

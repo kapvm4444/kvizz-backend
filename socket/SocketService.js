@@ -14,7 +14,7 @@ class SocketService {
   initializeServer(server) {
     this.io = require("socket.io")(server, {
       cors: {
-        origin: "*",
+        origin: ["http://localhost:3000", "http://10.0.0.106:3000"],
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -67,84 +67,34 @@ class SocketService {
 
       //-> Join room with a code
       //*'join-room' - User joins the quiz (needs join code, userId (if not userId only then send username))
-      /*socket.on("join-room", async (data) => {
+      socket.on("join-room", async (data) => {
         try {
           const { gameCode, userId, username } = data;
 
-          let game;
-          GameSession.findOne({ gameCode })
-            .then((data) => {
-              game = data;
-            })
-            .catch((err) => console.log(err));
+          const game = await GameSession.findOne({ gameCode });
 
           if (!game || game.status !== "waiting") {
+            console.log("Game not found");
             return socket.emit("error", "Game not found or is already Started");
+          }
+
+          if (
+            game.participants.some((element) => element.username === username)
+          ) {
+            console.log("Username already in use");
+            return socket.emit("error", "Username Already in use");
           }
 
           socket.join(game.connectionId);
 
-          game = await game.addParticipant(userId, username);
+          await game.addParticipant(userId, username);
           await game.save();
 
           this.io.to(game.connectionId).emit("participant-joined", game);
           console.log("join-room socket End");
         } catch (err) {
-          console.log(err.message);
+          console.log(err.message, err.stack);
           socket.emit("error", err.message);
-        }
-      });*/
-
-      socket.on("join-room", async (data) => {
-        try {
-          const { gameCode, userId, username } = data;
-
-          // 1. Validate input
-          if (!gameCode || (!userId && !username)) {
-            return socket.emit(
-              "error",
-              "gameCode and userId or username are required",
-            );
-          }
-
-          // 2. Guaranteed, bounded query
-          const game = await GameSession.findOne({ gameCode })
-            .maxTimeMS(SAFE_QUERY_TIMEOUT)
-            .exec();
-
-          if (!game) {
-            return socket.emit("error", "Game not found");
-          }
-          if (game.status !== "waiting") {
-            return socket.emit("error", "Game is already started");
-          }
-
-          // 3. Join the socket room (efficient, before mutating DB)
-          socket.join(game.connectionId);
-
-          // 4. Add participant with a solid transactional pattern
-          const didAddParticipant = await game.addParticipant(userId, username);
-
-          if (!didAddParticipant) {
-            return socket.emit(
-              "error",
-              "Could not add participant. You may already be part of this game.",
-            );
-          }
-
-          // 5. Save, bounded by timeout
-          await game.save({ maxTimeMS: SAFE_QUERY_TIMEOUT });
-
-          // 6. Emit only after all is well
-          this.io.to(game.connectionId).emit("participant-joined", game);
-        } catch (err) {
-          console.error("join-room error:", err);
-          let msg =
-            err && err.message ? err.message : "Unknown error joining room";
-          if (msg.includes("operation exceeded time limit")) {
-            msg = "Database timeout. Please try again later.";
-          }
-          socket.emit("error", msg);
         }
       });
 
@@ -161,14 +111,9 @@ class SocketService {
             username,
           );
 
-          // const participants = updatedGame.participants.filter(
-          //   (player) => player["userId"],
-          // );
-          // if (participants.includes())
-
           this.io
             .to(updatedGame.connectionId)
-            .emit("participant-left", updatedGame);
+            .emit("participant-left", { updatedGame, leftUser: username });
         } catch (err) {
           console.log(err.message);
           socket.emit("error", err.message);
@@ -184,6 +129,7 @@ class SocketService {
 
           const game = await GameSession.findById(gameSessionId);
           game.status = "playing";
+          game.startedAt = Date.now();
           const updatedGame = await game.save();
 
           this.io
@@ -205,11 +151,11 @@ class SocketService {
           const game = await GameSession.findById(gameSessionId);
 
           game.status = "finished";
-          const updatedGame = await game.save();
+          game.finishedAt = Date.now();
+          game.calculateLeaderboard();
+          // const updatedGame = await game.save();
 
-          this.io
-            .to(updatedGame.connectionId)
-            .emit("final-leaderboard", updatedGame);
+          this.io.to(game.connectionId).emit("final-leaderboard", game);
         } catch (e) {
           console.log(e.message);
           socket.emit("error", e.message);
@@ -241,23 +187,34 @@ class SocketService {
         try {
           const {
             gameSessionId,
-            userId,
+            username,
             questionId,
             answer,
             isCorrect,
             timeTaken,
           } = data;
 
+          console.log(data);
+
+          /*const abc = {
+            "gameSessionId": "687c6ca8505a1a67c89410ab",
+            "username": "lalo",
+            "questionId": "687b8880d8bc302e78779d3f",
+            "answer": "express",
+            "isCorrect": true,
+            "timeTaken": 30000,
+          };*/
+
           const game = await GameSession.findById(gameSessionId);
           await game.submitAnswer(
-            userId,
+            username,
             questionId,
             answer,
             isCorrect,
             timeTaken,
           );
-          await game.calculateLeaderboard();
-          const updatedGame = await game.save();
+          const updatedGame = await game.calculateLeaderboard();
+          // const updatedGame = await game.save();
 
           this.io
             .to(updatedGame.connectionId)
@@ -268,8 +225,8 @@ class SocketService {
         }
       });
 
-      socket.on("disconnect", () => {
-        console.log(`${socket.id} Disconnected`);
+      socket.on("disconnect", (reason) => {
+        console.log(`${socket.id} Disconnected. Due to ${reason}`);
       });
     });
   }

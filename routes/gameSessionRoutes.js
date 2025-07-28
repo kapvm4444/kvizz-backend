@@ -4,6 +4,13 @@ const gameSessionController = require("./../controllers/gameSessionController");
 
 const router = express.Router();
 
+router
+  .route("/explore")
+  .get(
+    gameSessionController.filterPublicQuizzes,
+    gameSessionController.getGameSessions,
+  );
+
 //Routes for creating and getting all
 router
   .route("/")
@@ -16,12 +23,5 @@ router
   .get(gameSessionController.getGameSession)
   .patch(gameSessionController.updateGameSession)
   .delete(gameSessionController.deleteGameSession);
-
-router
-  .route("/explore")
-  .get(
-    gameSessionController.filterPublicQuizzes,
-    gameSessionController.getGameSessions,
-  );
 
 module.exports = router;

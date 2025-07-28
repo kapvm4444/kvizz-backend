@@ -22,14 +22,14 @@ const DB =
 
 mongoose
   .connect(DB, {
-    useCreateIndex: true,
-    useNewUrlParser: true,
-    useFindAndModify: false,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000, // Fast-fail if Mongo is down
+    // useCreateIndex: true,
+    // useNewUrlParser: true,
+    // useFindAndModify: false,
+    // useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
-    bufferCommands: false, // No query buffering!
+    bufferCommands: false,
   })
 
   .then((con) =>

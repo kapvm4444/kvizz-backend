@@ -81,6 +81,9 @@ quizSchema.pre(/^find/, function (next) {
   this.populate({
     path: "questions",
     select: "-createdAt -__v -quizId",
+  }).populate({
+    path: "creator",
+    select: "name",
   });
 
   next();

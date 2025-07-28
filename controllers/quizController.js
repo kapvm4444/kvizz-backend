@@ -6,6 +6,7 @@ const Quiz = require("./../models/quizModel");
 const Question = require("./../models/questionModel");
 
 const factory = require("./handlerFactory");
+const AppError = require("../utils/appError");
 
 const PYTHON_SERVER_URL = "http://localhost:4000";
 
@@ -79,6 +80,7 @@ exports.generateQuizFromCsv = async (req, res) => {
   }
 };
 
+//=> create and save the questions from the request
 exports.saveQuestions = async (req, res, next) => {
   try {
     // 1. Destructure the questions array and the rest of the quiz data from the request body.
@@ -140,6 +142,7 @@ exports.saveQuestions = async (req, res, next) => {
   // });
 };
 
+//=> update all the questions
 exports.updateQuizWithQuestions = async (req, res) => {
   try {
     const { _id: quizId, questions, ...quizData } = req.body;
@@ -191,6 +194,29 @@ exports.updateQuizWithQuestions = async (req, res) => {
       message: err.message,
     });
   }
+};
+
+//=> delete the quiz and the questions both together
+exports.deleteQuizWithQuestions = async (req, res, next) => {
+  const quiz = await Quiz.findById(req.params.id);
+
+  const { questions } = quiz;
+  const questionIds = questions.map((q) => q.id);
+  console.log("ASdasd");
+
+  if (questionIds)
+    for (const questionId of questionIds) {
+      await Question.findByIdAndDelete(questionId);
+    }
+
+  const doc = await Quiz.findByIdAndDelete(req.params.id);
+
+  if (!doc) return next(new AppError("No document found with that ID", 404));
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
 };
 
 exports.getQuizQuestions = async (req, res, next) => {
