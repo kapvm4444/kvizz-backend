@@ -7,6 +7,7 @@ const Question = require("./../models/questionModel");
 
 const factory = require("./handlerFactory");
 const AppError = require("../utils/appError");
+const User = require("../models/userModel");
 
 const PYTHON_SERVER_URL = "http://localhost:4000";
 
@@ -83,10 +84,8 @@ exports.generateQuizFromCsv = async (req, res) => {
 //=> create and save the questions from the request
 exports.saveQuestions = async (req, res, next) => {
   try {
-    // 1. Destructure the questions array and the rest of the quiz data from the request body.
     const { questions, ...quizData } = req.body;
 
-    // Basic validation: ensure there are questions to save.
     if (!questions || questions.length === 0) {
       return res.status(400).json({
         status: "fail",
@@ -94,20 +93,19 @@ exports.saveQuestions = async (req, res, next) => {
       });
     }
 
-    // 2. Create all the question documents in the database in a single, efficient operation.
     const questionDocs = await Question.insertMany(questions);
 
-    // 3. Extract the newly created `_id`s from the question documents.
     const questionIds = questionDocs.map((q) => q._id);
 
-    // 4. Create the main Quiz document, including the array of question IDs.
     const newQuiz = await Quiz.create({
       ...quizData,
-      questions: questionIds, // Assign the array of ObjectIDs
+      questions: questionIds,
     });
 
-    // 5. Populate the 'questions' field in the new quiz to return the full quiz object with questions.
-    // This is good practice so the client gets the complete, saved object back.
+    await User.findByIdAndUpdate(newQuiz.creator, {
+      $addToSet: { ownedQuizzes: newQuiz._id },
+    });
+
     const populatedQuiz = await Quiz.findById(newQuiz._id).populate(
       "questions",
     );
@@ -199,10 +197,9 @@ exports.updateQuizWithQuestions = async (req, res) => {
 //=> delete the quiz and the questions both together
 exports.deleteQuizWithQuestions = async (req, res, next) => {
   const quiz = await Quiz.findById(req.params.id);
+  if (!quiz) return next(new AppError("No document found with that ID", 404));
 
-  const { questions } = quiz;
-  const questionIds = questions.map((q) => q.id);
-  console.log("ASdasd");
+  const questionIds = quiz.questions.map((q) => q.id);
 
   if (questionIds)
     for (const questionId of questionIds) {
