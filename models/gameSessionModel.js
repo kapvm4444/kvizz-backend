@@ -143,7 +143,7 @@ gameSessionSchema.index({ hostId: 1 });
 gameSessionSchema.pre(/^find/, function (next) {
   this.populate({
     path: "quizId",
-    select: "title description category",
+    select: "questions",
   }).populate({
     path: "hostId",
     select: "name photo",
@@ -159,10 +159,12 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
   let isGuest = false;
 
   let existingParticipant;
-  if (userId)
-    existingParticipant = this.participants.find(
-      (p) => p.userId.toString() === userId.toString(),
-    );
+  if (userId) {
+    existingParticipant = this.participants.find((p) => {
+      if (p.userId) return p.userId.toString() === userId.toString();
+      else return p.username.toString() === username.toString();
+    });
+  }
 
   if (!userId) {
     userId = null;
@@ -171,6 +173,8 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
     throw new Error(
       "You have already Joined this game try to access that device",
     );
+  } else if (userId.toString() === this.hostId.toString()) {
+    return this;
   }
 
   if (this.participants.length >= this.settings.maxParticipants) {
@@ -193,8 +197,8 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
 //=>Remove participants
 gameSessionSchema.methods.removeParticipant = function (userId, username) {
   const participantIndex = this.participants.findIndex((p) => {
-    if (!userId) return p.username.toString() === username.toString();
-    return p.userId.toString() === userId.toString();
+    if (!userId) return p.username === username;
+    return p.userId === userId;
   });
   if (participantIndex > -1) {
     this.participants.splice(participantIndex, 1);

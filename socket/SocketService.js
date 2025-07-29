@@ -14,7 +14,8 @@ class SocketService {
   initializeServer(server) {
     this.io = require("socket.io")(server, {
       cors: {
-        origin: ["http://localhost:3000", "http://10.0.0.106:3000"],
+        // origin: ["http://localhost:3003", "http://10.0.0.100:3003"],
+        origin: "*",
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -30,7 +31,7 @@ class SocketService {
       //-> Create Room
       //*'create-room' - creator creates room (needs quizID, userId)
       socket.on("create-room", async (data) => {
-        console.log("create-room socket called");
+        console.log("------------create-room socket called");
         try {
           const { quizId, hostId } = data;
 
@@ -58,7 +59,7 @@ class SocketService {
 
           socket.join(newGameSession.connectionId);
           socket.emit("game-created", newGameSession);
-          console.log("create-room socket End");
+          console.log("create-room socket End------------");
         } catch (err) {
           console.log("Error 💥💥 :" + err.message);
           socket.emit("error", err.message);
@@ -68,6 +69,7 @@ class SocketService {
       //-> Join room with a code
       //*'join-room' - User joins the quiz (needs join code, userId (if not userId only then send username))
       socket.on("join-room", async (data) => {
+        console.log("------------ join room called");
         try {
           const { gameCode, userId, username } = data;
 
@@ -91,7 +93,7 @@ class SocketService {
           await game.save();
 
           this.io.to(game.connectionId).emit("participant-joined", game);
-          console.log("join-room socket End");
+          console.log("join-room socket End------------");
         } catch (err) {
           console.log(err.message, err.stack);
           socket.emit("error", err.message);
@@ -101,7 +103,7 @@ class SocketService {
       //-> Leave the quiz room
       //*'leave-quiz' - User leaves a quiz room (needs gameSessionId and userId or username, whichever you have sent while "join-room" event)
       socket.on("leave-quiz", async (data) => {
-        console.log("leave-room socket called");
+        console.log("------------ leave-room socket called");
         try {
           const { gameSessionId, userId, username } = data;
           const currentGame = await GameSession.findById(gameSessionId);
@@ -114,6 +116,7 @@ class SocketService {
           this.io
             .to(updatedGame.connectionId)
             .emit("participant-left", { updatedGame, leftUser: username });
+          console.log("leave finish------------");
         } catch (err) {
           console.log(err.message);
           socket.emit("error", err.message);
@@ -123,7 +126,7 @@ class SocketService {
       //-> Start the quiz
       // * 'start-quiz' - Host starts the quiz game (needs gameSession ID)
       socket.on("start-quiz", async (data) => {
-        console.log("start-quiz socket called");
+        console.log("------------start-quiz socket called");
         try {
           const { gameSessionId } = data;
 
@@ -135,6 +138,8 @@ class SocketService {
           this.io
             .to(updatedGame.connectionId)
             .emit("game-started", updatedGame);
+
+          console.log("start quiz end ------------");
         } catch (e) {
           console.log(e.message);
           socket.emit("error", e.message);
@@ -144,7 +149,7 @@ class SocketService {
       //-> stop quiz
       // * 'stop-quiz' - Game is ended (manually or automatic) (needs gameSession ID)
       socket.on("stop-quiz", async (data) => {
-        console.log("stop-quiz socket called");
+        console.log("------------stop-quiz socket called");
         try {
           const { gameSessionId } = data;
 
@@ -156,6 +161,8 @@ class SocketService {
           // const updatedGame = await game.save();
 
           this.io.to(game.connectionId).emit("final-leaderboard", game);
+
+          console.log("stop quiz end ------------");
         } catch (e) {
           console.log(e.message);
           socket.emit("error", e.message);
@@ -165,7 +172,7 @@ class SocketService {
       //-> get questions of current running quiz
       // * 'get-questions' - Get the questions of current quiz (live) (needs gameSessionId)
       socket.on("get-questions", async (data) => {
-        console.log("getQuestion socket called");
+        console.log("------------ getQuestion socket called");
         try {
           const { gameSessionId } = data;
 
@@ -173,6 +180,8 @@ class SocketService {
           const quiz = await Quiz.findById(game.quizId);
 
           socket.emit("load-questions", quiz);
+
+          console.log("get questions end ------------");
         } catch (err) {
           console.log(err.message);
           socket.emit("error", err.message);
@@ -183,7 +192,7 @@ class SocketService {
       /** 'submit-answer' - User submits answer to current question (needs answer data
        * [gameSessionId, userId, questionId, answer, isCorrect, timeTaken])*/
       socket.on("submit-answer", async (data) => {
-        console.log("submitAns socket called");
+        console.log("------------ submitAns socket called");
         try {
           const {
             gameSessionId,
@@ -219,6 +228,8 @@ class SocketService {
           this.io
             .to(updatedGame.connectionId)
             .emit("live-scores-updated", updatedGame);
+
+          console.log("submit answer end ------------");
         } catch (e) {
           console.log(e.message);
           socket.emit("error", e.message);
