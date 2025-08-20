@@ -111,7 +111,7 @@ app.use("/api/v1/games", gameSessionRouter);
 
 app.use("/", (req, res, next) => {
   res.end(
-    "Welcome to Kvizz api page. Obviously if you are not a developer, you wont get anything ;) Woooohooooo",
+    "Welcome to Kvizz api page. Obviously if you are not a developer, you wont get anything ;)",
   );
 });
 
