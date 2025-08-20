@@ -4,8 +4,6 @@ const Question = require("./../models/questionModel");
 const factory = require("./../controllers/handlerFactory");
 const mongoose = require("mongoose");
 
-const SAFE_QUERY_TIMEOUT = 5000;
-
 class SocketService {
   constructor() {
     this.io = null;
@@ -43,7 +41,6 @@ class SocketService {
           const gameCode = await GameSession.generateGameCode();
           console.log(gameCode);
           const connectionId = await GameSession.generateConnectionString();
-          console.log(connectionId);
 
           const gameSessionData = {
             quizId,
@@ -52,13 +49,15 @@ class SocketService {
             connectionId,
           };
 
-          const newGameSession = await factory.createAndReturnOne(
-            GameSession,
-            gameSessionData,
+          const newGameSession = await GameSession.create(gameSessionData);
+          const gameSessionWithPopulation = await GameSession.findById(
+            newGameSession._id,
           );
 
           socket.join(newGameSession.connectionId);
-          socket.emit("game-created", newGameSession);
+          socket.emit("game-created", gameSessionWithPopulation);
+
+          // console.log(gameSessionWithPopulation);
           console.log("create-room socket End------------");
         } catch (err) {
           console.log("Error 💥💥 :" + err.message);
@@ -108,14 +107,20 @@ class SocketService {
           const { gameSessionId, userId, username } = data;
           const currentGame = await GameSession.findById(gameSessionId);
 
-          const updatedGame = await currentGame.removeParticipant(
-            userId,
-            username,
+          await currentGame.removeParticipant(userId, username);
+          await currentGame.save();
+
+          const count = (
+            await this.io.in(currentGame.connectionId).fetchSockets()
+          ).length;
+          console.log(
+            `room ${currentGame.connectionId} has ${count} socket(s) before emit`,
           );
 
-          this.io
-            .to(updatedGame.connectionId)
-            .emit("participant-left", { updatedGame, leftUser: username });
+          socket.broadcast
+            .to(currentGame.connectionId)
+            .emit("participant-left", currentGame);
+
           console.log("leave finish------------");
         } catch (err) {
           console.log(err.message);
@@ -198,7 +203,7 @@ class SocketService {
             gameSessionId,
             username,
             questionId,
-            answer,
+            answers,
             isCorrect,
             timeTaken,
           } = data;
@@ -218,7 +223,7 @@ class SocketService {
           await game.submitAnswer(
             username,
             questionId,
-            answer,
+            answers,
             isCorrect,
             timeTaken,
           );
@@ -226,13 +231,13 @@ class SocketService {
           // const updatedGame = await game.save();
 
           this.io
-            .to(updatedGame.connectionId)
+            .to(game.connectionId)
             .emit("live-scores-updated", updatedGame);
 
           console.log("submit answer end ------------");
         } catch (e) {
           console.log(e.message);
-          socket.emit("error", e.message);
+          socket.emit("error", e.message, e.stack);
         }
       });
 

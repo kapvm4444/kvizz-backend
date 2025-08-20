@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const gameSessionSchema = new mongoose.Schema(
   {
@@ -143,7 +144,7 @@ gameSessionSchema.index({ hostId: 1 });
 gameSessionSchema.pre(/^find/, function (next) {
   this.populate({
     path: "quizId",
-    select: "questions",
+    select: "title description questions",
   }).populate({
     path: "hostId",
     select: "name photo",
@@ -166,15 +167,15 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
     });
   }
 
-  if (!userId) {
-    userId = null;
-    isGuest = true;
+  if (userId?.toString() === this.hostId.toString()) {
+    return this;
   } else if (existingParticipant) {
     throw new Error(
       "You have already Joined this game try to access that device",
     );
-  } else if (userId.toString() === this.hostId.toString()) {
-    return this;
+  } else if (!userId) {
+    userId = null;
+    isGuest = true;
   }
 
   if (this.participants.length >= this.settings.maxParticipants) {
@@ -211,36 +212,44 @@ gameSessionSchema.methods.removeParticipant = function (userId, username) {
 gameSessionSchema.methods.submitAnswer = function (
   username,
   questionId,
-  answer,
+  answers,
   isCorrect,
   timeTaken,
 ) {
-  const participantIndex = this.participants.findIndex((p) => {
-    return p.username.toString() === username.toString();
-  });
+  try {
+    const participantIndex = this.participants.findIndex((p) => {
+      return p.username.toString() === username.toString();
+    });
 
-  const totalTimePerQuestionInMs = this.settings.timePerQuestion * 1000;
-  const timeLeft = totalTimePerQuestionInMs - timeTaken;
-  const score = isCorrect
-    ? Math.round(
-        (timeLeft / totalTimePerQuestionInMs) *
-          this.settings.maxPointsPerQuestion,
-      )
-    : 0;
+    const totalTimePerQuestionInMs = this.settings.timePerQuestion * 1000;
+    const timeLeft = totalTimePerQuestionInMs - timeTaken;
+    const score = isCorrect
+      ? Math.round(
+          (timeLeft / totalTimePerQuestionInMs) *
+            this.settings.maxPointsPerQuestion,
+        )
+      : 0;
 
-  const userSubmittedAnswer = {
-    questionId,
-    answer,
-    isCorrect,
-    timeTaken,
-    points: score,
-  };
+    const userSubmittedAnswer = {
+      questionId,
+      answers,
+      isCorrect,
+      timeTaken,
+      points: score,
+    };
 
-  this.participants[participantIndex].answers.push(userSubmittedAnswer);
-  this.participants[participantIndex].score += score;
-  // this.save();
+    console.log(this.participants);
+    console.log(this.participants[participantIndex]);
+    console.log(participantIndex);
+    this.participants[participantIndex].answers.push(userSubmittedAnswer);
+    this.participants[participantIndex].score += score;
+    // this.update();
 
-  return this;
+    return this;
+  } catch (e) {
+    console.log(e.stack);
+    console.log(e.message);
+  }
 };
 
 //=> Calculate leaderboard
@@ -276,28 +285,45 @@ gameSessionSchema.methods.calculateLeaderboard = function () {
 
 //=>Get total active participants
 gameSessionSchema.statics.generateGameCode = async function () {
-  // Use current timestamp + random number
-  const now = Date.now();
-  const random = Math.floor(Math.random() * 9999);
+  // // Use current timestamp + random number
+  // const now = Date.now();
+  // const random = Math.floor(Math.random() * 9999);
+  //
+  // // Take last 2 digits of timestamp + 4-digit random = 6 digits
+  // const timeComponent = now.toString().slice(-2);
+  // const randomComponent = random.toString().padStart(4, "0");
+  // const gameCode = parseInt(timeComponent + randomComponent);
+  //
+  // // Ensure it's in valid range
+  // const finalCode = Math.max(100000, Math.min(999999, gameCode));
+  //
+  // return finalCode;
+  let gameCode;
+  let exists = true;
 
-  // Take last 2 digits of timestamp + 4-digit random = 6 digits
-  const timeComponent = now.toString().slice(-2);
-  const randomComponent = random.toString().padStart(4, "0");
-  const gameCode = parseInt(timeComponent + randomComponent);
+  while (exists) {
+    gameCode = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+    const existingGame = await this.findOne({ gameCode });
+    exists = !!existingGame;
+  }
 
-  // Ensure it's in valid range
-  const finalCode = Math.max(100000, Math.min(999999, gameCode));
-
-  return finalCode;
+  return gameCode;
 };
 
 //=> generate connection string
 gameSessionSchema.statics.generateConnectionString = async function () {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  const connectionId = timestamp + random;
+  // const timestamp = Date.now().toString(36);
+  // const random = Math.random().toString(36).substring(2, 8);
+  // const connectionId = timestamp + random;
+  //
+  // return connectionId;
 
-  return connectionId;
+  while (true) {
+    const connStr =
+      Date.now().toString(36) + crypto.randomBytes(5).toString("base64url");
+    const exists = await this.exists({ connectionId: connStr });
+    if (!exists) return connStr;
+  }
 };
 
 const GameSession = mongoose.model("GameSession", gameSessionSchema);
