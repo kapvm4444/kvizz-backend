@@ -10,7 +10,7 @@ No route left unexplained, no socket left un-emitted.
 ## 📦 Base URL
 
 ```
-https://<your-backend-domain>/api/v1/
+https://kvizz.khush.pro/api/v1/
 ```
 
 ---
