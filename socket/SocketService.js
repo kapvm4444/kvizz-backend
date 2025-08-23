@@ -71,6 +71,7 @@ class SocketService {
         console.log("------------ join room called");
         try {
           const { gameCode, userId, username } = data;
+          console.log(data);
 
           const game = await GameSession.findOne({ gameCode });
 
@@ -207,8 +208,7 @@ class SocketService {
             isCorrect,
             timeTaken,
           } = data;
-
-          console.log(data);
+          console.log("1");
 
           /*const abc = {
             "gameSessionId": "687c6ca8505a1a67c89410ab",
@@ -218,8 +218,10 @@ class SocketService {
             "isCorrect": true,
             "timeTaken": 30000,
           };*/
+          console.log("2");
 
           const game = await GameSession.findById(gameSessionId);
+          console.log("3");
           await game.submitAnswer(
             username,
             questionId,
@@ -227,9 +229,11 @@ class SocketService {
             isCorrect,
             timeTaken,
           );
+          console.log("4");
           const updatedGame = await game.calculateLeaderboard();
           // const updatedGame = await game.save();
 
+          console.log("5");
           this.io
             .to(game.connectionId)
             .emit("live-scores-updated", updatedGame);

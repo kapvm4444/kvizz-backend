@@ -241,7 +241,7 @@ gameSessionSchema.methods.submitAnswer = function (
     console.log(this.participants);
     console.log(this.participants[participantIndex]);
     console.log(participantIndex);
-    this.participants[participantIndex].answers.push(userSubmittedAnswer);
+    this.participants[participantIndex]?.answers.push(userSubmittedAnswer);
     this.participants[participantIndex].score += score;
     // this.update();
 
