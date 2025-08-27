@@ -102,7 +102,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     "username",
     "mobile",
   ); //simply filters and give only values which are mentioned in arguments
-  if (req.file) filteredBody.photo = req.file.filename;
+  // if (req.file) filteredBody.photo = req.file.filename;
 
   //3. Update user document
   const updatedUser = await User.findByIdAndUpdate(req.user._id, filteredBody, {
