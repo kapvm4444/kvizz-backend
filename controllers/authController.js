@@ -224,7 +224,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   if (!isPasswordCorrect)
     return next(new AppError("Your current password is invalid", 400));
 
-  if (currentPassword.length >= 8)
+  if (!currentPassword.length >= 8)
     return next(
       new AppError("New Password must be at least 8 characters", 400),
     );
