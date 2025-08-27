@@ -207,6 +207,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 //=>
 // Update the user password without prompting forgot password [for logged in users]
 exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword, NewPasswordConfirm } = req.body;
+
   //1. get the user from collection
   const user = await User.findById(req.user._id).select("+password");
   if (!user)
@@ -214,17 +216,27 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 
   console.log(req.body);
   const isPasswordCorrect = await user.checkPassword(
-    req.body.currentPassword,
+    currentPassword,
     user.password,
   );
   console.log(isPasswordCorrect);
   //2. check if password is correct or not
-  if (!isPasswordCorrect || req.body.currentPassword.length >= 8)
+  if (!isPasswordCorrect)
     return next(new AppError("Your current password is invalid", 400));
 
+  if (currentPassword.length >= 8)
+    return next(
+      new AppError("New Password must be at least 8 characters", 400),
+    );
+
+  if (currentPassword === newPassword)
+    return next(
+      new AppError("New password can not be same as the current Password", 400),
+    );
+
   //3. if yes, then change the password
-  user.password = req.body.newPassword;
-  user.passwordConfirm = req.body.NewPasswordConfirm;
+  user.password = newPassword;
+  user.passwordConfirm = NewPasswordConfirm;
   const updatedUser = await user.save();
 
   //4. log user in again with JWT
