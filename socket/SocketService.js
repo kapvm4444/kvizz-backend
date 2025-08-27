@@ -1,8 +1,24 @@
 const GameSession = require("./../models/gameSessionModel");
 const Quiz = require("./../models/quizModel");
 const Question = require("./../models/questionModel");
+const User = require("./../models/userModel");
 const factory = require("./../controllers/handlerFactory");
 const mongoose = require("mongoose");
+
+//->Helper Functions
+//=> Update the user totalScore and gamesPlayed
+async function updateTotalScoreAndGamesPlayed(userId, score) {
+  const user = await User.findByIdAndUpdate(userId.toString(), {
+    $inc: { "stats.totalScore": score, "stats.gamesPlayed": 1 },
+  });
+}
+
+//=> Update the user averageScore
+async function updateAverageScore(userId) {
+  const user = await User.findById(userId);
+  user.stats.averageScore = user.stats.totalScore / user.stats.gamesPlayed;
+  await user.save();
+}
 
 class SocketService {
   constructor() {
@@ -106,21 +122,18 @@ class SocketService {
         console.log("------------ leave-room socket called");
         try {
           const { gameSessionId, userId, username } = data;
-          const currentGame = await GameSession.findById(gameSessionId);
+          const freshGame = await GameSession.findById(gameSessionId);
 
-          await currentGame.removeParticipant(userId, username);
-          await currentGame.save();
+          console.log(freshGame);
 
-          const count = (
-            await this.io.in(currentGame.connectionId).fetchSockets()
-          ).length;
-          console.log(
-            `room ${currentGame.connectionId} has ${count} socket(s) before emit`,
+          const updatedGame = await freshGame.removeParticipant(
+            userId,
+            username,
           );
 
           socket.broadcast
-            .to(currentGame.connectionId)
-            .emit("participant-left", currentGame);
+            .to(freshGame.connectionId)
+            .emit("participant-left", updatedGame);
 
           console.log("leave finish------------");
         } catch (err) {
@@ -161,12 +174,29 @@ class SocketService {
 
           const game = await GameSession.findById(gameSessionId);
 
+          if (!game) throw new Error("Game not found for finishing the game");
+
+          if (game.status === "playing") {
+            for (const player of game.participants) {
+              if (player.userId) {
+                await updateTotalScoreAndGamesPlayed(
+                  player.userId,
+                  player.score,
+                );
+                await updateAverageScore(player.userId);
+              }
+            }
+          }
+
           game.status = "finished";
           game.finishedAt = Date.now();
-          game.calculateLeaderboard();
+          const finishedGame = await game.save();
+          const updatedGame = await finishedGame.calculateLeaderboard();
           // const updatedGame = await game.save();
 
-          this.io.to(game.connectionId).emit("final-leaderboard", game);
+          socket.broadcast
+            .to(game.connectionId)
+            .emit("final-leaderboard", updatedGame);
 
           console.log("stop quiz end ------------");
         } catch (e) {
@@ -208,9 +238,40 @@ class SocketService {
             isCorrect,
             timeTaken,
           } = data;
-          console.log("1");
 
-          /*const abc = {
+          //getting fresh game
+          const game = await GameSession.findById(gameSessionId);
+
+          const participant = game.participants.find(
+            (p) => p.username === username,
+          );
+          const alreadySubmitted = participant?.answers.some(
+            (ans) => ans.questionId.toString() === questionId.toString(),
+          );
+
+          if (alreadySubmitted)
+            return socket.emit(
+              "error",
+              "Answer already submitted for this question",
+            );
+
+          const updatedScoredGame = await game.submitAnswer(
+            username,
+            questionId,
+            answers,
+            isCorrect,
+            timeTaken,
+          );
+
+          const updatedGame = await updatedScoredGame.calculateLeaderboard();
+
+          this.io
+            .to(game.connectionId)
+            .emit("live-scores-updated", updatedGame);
+
+          console.log("submit answer end ------------");
+          /*sample data
+            const abc = {
             "gameSessionId": "687c6ca8505a1a67c89410ab",
             "username": "lalo",
             "questionId": "687b8880d8bc302e78779d3f",
@@ -218,7 +279,8 @@ class SocketService {
             "isCorrect": true,
             "timeTaken": 30000,
           };*/
-          console.log("2");
+          /*Old Code with non-concurrency
+            console.log("2");
 
           const game = await GameSession.findById(gameSessionId);
           console.log("3");
@@ -236,9 +298,7 @@ class SocketService {
           console.log("5");
           this.io
             .to(game.connectionId)
-            .emit("live-scores-updated", updatedGame);
-
-          console.log("submit answer end ------------");
+            .emit("live-scores-updated", updatedGame);*/
         } catch (e) {
           console.log(e.message);
           socket.emit("error", e.message, e.stack);

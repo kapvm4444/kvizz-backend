@@ -14,7 +14,7 @@ router.get("/logout", authController.logout);
 router.post("/forgot-password", authController.forgotPassword);
 router.patch("/reset-password/:token", authController.resetPassword);
 
-// router.use(authController.protect);
+router.use(authController.protect);
 
 //=> forgot and reset password (for logged in users)
 router.patch("/update-password", authController.updatePassword);
@@ -33,7 +33,7 @@ router.patch(
 //=> Delete of user (Just deactivate user) [for logged-in users]
 router.delete("/delete-me", userController.deleteMe);
 
-// router.use(authController.restrictTo("admin"));
+router.use(authController.restrictTo("admin"));
 
 //=> API routes
 router

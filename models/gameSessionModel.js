@@ -38,6 +38,7 @@ const gameSessionSchema = new mongoose.Schema(
           ref: "User",
         },
         username: String,
+        photo: String,
         isGuest: Boolean,
         score: {
           type: Number,
@@ -137,6 +138,9 @@ const gameSessionSchema = new mongoose.Schema(
 
 gameSessionSchema.index({ createdAt: -1 });
 gameSessionSchema.index({ hostId: 1 });
+gameSessionSchema.index({ "participants.username": 1 });
+gameSessionSchema.index({ "participants.answers.questionId": 1 });
+gameSessionSchema.index({ connectionId: 1 });
 
 //=> Middlewares
 
@@ -157,6 +161,8 @@ gameSessionSchema.pre(/^find/, function (next) {
 
 //=> Add Participant
 gameSessionSchema.methods.addParticipant = function (userId, username) {
+  if (userId === this.hostId || userId === this.hostId._id) return this;
+
   let isGuest = false;
 
   let existingParticipant;
@@ -167,7 +173,7 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
     });
   }
 
-  if (userId?.toString() === this.hostId.toString()) {
+  if (userId?.toString() === this.hostId.id.toString()) {
     return this;
   } else if (existingParticipant) {
     throw new Error(
@@ -185,6 +191,9 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
   this.participants.push({
     userId,
     username,
+    photo: userId
+      ? `https://api.dicebear.com/9.x/big-smile/svg?seed=${userId}`
+      : `https://api.dicebear.com/9.x/big-smile/svg?seed=${username}`,
     isGuest,
     score: 0,
     answers: [],
@@ -196,7 +205,12 @@ gameSessionSchema.methods.addParticipant = function (userId, username) {
 };
 
 //=>Remove participants
-gameSessionSchema.methods.removeParticipant = function (userId, username) {
+gameSessionSchema.methods.removeParticipant = async function (
+  userId,
+  username,
+) {
+  /*OLD CODE BEFORE CONCURRENCY
+
   const participantIndex = this.participants.findIndex((p) => {
     if (!userId) return p.username === username;
     return p.userId === userId;
@@ -205,20 +219,56 @@ gameSessionSchema.methods.removeParticipant = function (userId, username) {
     this.participants.splice(participantIndex, 1);
     return this.save();
   }
-  return this;
+  return this;*/
+
+  try {
+    const updatedGame = await this.constructor.findOneAndUpdate(
+      {
+        _id: this._id,
+        "participants.username": username,
+      },
+      {
+        $pull: {
+          participants: { username: username },
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    console.log(updatedGame);
+
+    if (!updatedGame) {
+      throw new Error(`Participant '${username}' not found or already removed`);
+    }
+
+    console.log(`Participant '${username}' removed successfully`);
+    return updatedGame;
+  } catch (error) {
+    console.log("removeParticipant error:", error.message);
+    throw error;
+  }
 };
 
 //=> Submit answer of user
-gameSessionSchema.methods.submitAnswer = function (
+gameSessionSchema.methods.submitAnswer = async function (
   username,
   questionId,
   answers,
   isCorrect,
   timeTaken,
 ) {
-  try {
+  /**
+   **Old Way, not satisfying ACID properties and failing some updates
+
+   try {
     const participantIndex = this.participants.findIndex((p) => {
-      return p.username.toString() === username.toString();
+      console.log(p.username);
+      console.log(username);
+      console.log(p.username === username);
+      return p.username === username;
     });
 
     const totalTimePerQuestionInMs = this.settings.timePerQuestion * 1000;
@@ -232,15 +282,12 @@ gameSessionSchema.methods.submitAnswer = function (
 
     const userSubmittedAnswer = {
       questionId,
-      answers,
+      answer: answers.toString(),
       isCorrect,
       timeTaken,
       points: score,
     };
 
-    console.log(this.participants);
-    console.log(this.participants[participantIndex]);
-    console.log(participantIndex);
     this.participants[participantIndex]?.answers.push(userSubmittedAnswer);
     this.participants[participantIndex].score += score;
     // this.update();
@@ -249,11 +296,56 @@ gameSessionSchema.methods.submitAnswer = function (
   } catch (e) {
     console.log(e.stack);
     console.log(e.message);
+  }*/
+  //=> New Atomic way of doing updates
+
+  const totalTimePerQuestionInMs = this.settings.timePerQuestion * 1000;
+  const timeLeft = totalTimePerQuestionInMs - timeTaken;
+  const score = isCorrect
+    ? Math.round(
+        (timeLeft / totalTimePerQuestionInMs) *
+          this.settings.maxPointsPerQuestion,
+      )
+    : 0;
+
+  const userSubmittedAnswer = {
+    questionId,
+    answer: answers.toString(),
+    isCorrect,
+    timeTaken,
+    points: score,
+  };
+
+  const result = await this.constructor.findOneAndUpdate(
+    {
+      _id: this._id,
+      "participants.username": username,
+    },
+    {
+      $push: {
+        "participants.$.answers": userSubmittedAnswer,
+      },
+      $inc: {
+        "participants.$.score": score,
+      },
+    },
+    { new: true, runValidators: true },
+  );
+
+  if (!result) {
+    throw new Error(
+      "Submission failed - duplicate answer or participant not found",
+    );
   }
+
+  return result;
 };
 
 //=> Calculate leaderboard
-gameSessionSchema.methods.calculateLeaderboard = function () {
+gameSessionSchema.methods.calculateLeaderboard = async function () {
+  //Old code, without Atomicity:
+  /*
+
   const leaderboard = this.participants
     .map((p) => ({
       userId: p.userId || null,
@@ -265,8 +357,8 @@ gameSessionSchema.methods.calculateLeaderboard = function () {
           p.answers.length || 0,
     }))
     .sort((a, b) => {
-      if (a.score === b.score) return b.avgResponseTime - a.avgResponseTime;
-      return a.score - b.score;
+      if (a.score === b.score) return a.avgResponseTime - b.avgResponseTime;
+      return b.score - a.score;
     })
     .map((ans, index) => {
       return {
@@ -275,12 +367,50 @@ gameSessionSchema.methods.calculateLeaderboard = function () {
       };
     });
 
+
   this.results.leaderboard = leaderboard;
   if (leaderboard.length > 0) {
     this.results.winner = leaderboard[0].userId;
   }
 
   return this.save();
+  */
+
+  const freshGame = await this.constructor.findById(this._id);
+
+  const leaderboard = freshGame.participants
+    .map((p) => ({
+      userId: p.userId || null,
+      username: p.username,
+      score: p.score,
+      correctAnswers: p.answers.filter((ans) => ans.isCorrect).length,
+      avgResponseTime:
+        p.answers.reduce((sum, ans) => sum + ans.timeTaken, 0) /
+          p.answers.length || 0,
+    }))
+    .sort((a, b) => {
+      if (a.score === b.score) return a.avgResponseTime - b.avgResponseTime;
+      return b.score - a.score;
+    })
+    .map((ans, index) => {
+      return {
+        ...ans,
+        rank: index + 1,
+      };
+    });
+
+  const updatedGame = await this.constructor.findByIdAndUpdate(
+    this._id,
+    {
+      $set: {
+        "results.leaderboard": leaderboard,
+        "results.winner": leaderboard[0]?.username || null,
+      },
+    },
+    { new: true },
+  );
+
+  return updatedGame;
 };
 
 //=>Get total active participants

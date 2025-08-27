@@ -1,9 +1,9 @@
-const catchAsync = require('./../utils/catchAsync');
-const AppError = require('./../utils/appError');
-const factory = require('./handlerFactory');
-const User = require('../models/userModel');
-const multer = require('multer');
-const sharp = require('sharp');
+const catchAsync = require("./../utils/catchAsync");
+const AppError = require("./../utils/appError");
+const factory = require("./handlerFactory");
+const User = require("../models/userModel");
+const multer = require("multer");
+const sharp = require("sharp");
 
 //Label
 // Config
@@ -26,10 +26,10 @@ const multerStorage = multer.memoryStorage();
 //=>
 // configuring file filter for image validation
 const multerFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image')) {
+  if (file.mimetype.startsWith("image")) {
     cb(null, true);
   } else {
-    cb(new AppError('Not an image, please try to upload an image'), false);
+    cb(new AppError("Not an image, please try to upload an image"), false);
   }
 };
 
@@ -42,7 +42,7 @@ const upload = multer({
 
 //=>
 // actual method to upload a single file
-exports.uploadUserPhoto = upload.single('photo');
+exports.uploadUserPhoto = upload.single("photo");
 
 //=>
 // formating and processing the image (compression and resizing)
@@ -53,7 +53,7 @@ exports.formatUserPhoto = (req, res, next) => {
 
     sharp(req.file.buffer)
       .resize(500, 500)
-      .toFormat('jpeg')
+      .toFormat("jpeg")
       .jpeg({ quality: 80 })
       .toFile(`public/img/users/${filename}`);
   }
@@ -89,13 +89,13 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   if (req.body.passwordConfirm || req.body.password)
     return next(
       new AppError(
-        'You can not change your password here, use /update-password',
+        "You can not change your password here, use /update-password",
         400,
       ),
     );
 
   //2. Filter out the unwanted fields
-  const filteredBody = filterObj(req.body, 'name', 'email'); //simply filters and give only values which are mentioned in arguments
+  const filteredBody = filterObj(req.body, "name", "email"); //simply filters and give only values which are mentioned in arguments
   if (req.file) filteredBody.photo = req.file.filename;
 
   //3. Update user document
@@ -104,7 +104,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     new: true,
   });
   res.status(200).json({
-    status: 'success',
+    status: "success",
     updatedUser,
   });
 });
@@ -118,7 +118,7 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
   });
 
   res.status(204).json({
-    status: 'success',
+    status: "success",
     data: null,
   });
 });
@@ -135,8 +135,8 @@ exports.getUser = factory.getOne(User);
 // POST - creating/adding new data to Json
 exports.createUser = (req, res) => {
   res.status(500).json({
-    status: 'err',
-    message: 'This route is not valid! use /signup route instead',
+    status: "err",
+    message: "This route is not valid! use /signup route instead",
   });
 };
 

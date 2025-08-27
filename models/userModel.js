@@ -109,12 +109,14 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ "stats.totalScore": -1 });
 userSchema.index({ createdAt: -1 });
 
+/*
 userSchema.virtual("ownedQuizzes", {
   ref: "Quiz",
   foreignField: "creator",
   localField: "_id",
   justOne: false,
 });
+*/
 
 //LABEL
 // HOOKS
