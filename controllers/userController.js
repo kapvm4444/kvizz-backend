@@ -95,7 +95,13 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     );
 
   //2. Filter out the unwanted fields
-  const filteredBody = filterObj(req.body, "name", "email"); //simply filters and give only values which are mentioned in arguments
+  const filteredBody = filterObj(
+    req.body,
+    "name",
+    "email",
+    "username",
+    "mobile",
+  ); //simply filters and give only values which are mentioned in arguments
   if (req.file) filteredBody.photo = req.file.filename;
 
   //3. Update user document

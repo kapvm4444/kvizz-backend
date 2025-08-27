@@ -25,8 +25,8 @@ router.get("/me", userController.getMe, userController.getUser);
 //=> Update the details of user (excluding passwords) [for logged-in users]
 router.patch(
   "/update-info",
-  userController.uploadUserPhoto,
-  userController.formatUserPhoto,
+  // userController.uploadUserPhoto,
+  // userController.formatUserPhoto,
   userController.updateMe,
 );
 
