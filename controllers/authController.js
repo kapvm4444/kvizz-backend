@@ -213,8 +213,13 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     return next(new AppError("Invalid JWT token, please log in again", 400));
 
   console.log(req.body);
+  const isPasswordCorrect = await user.checkPassword(
+    req.body.currentPassword,
+    user.password,
+  );
+  console.log(isPasswordCorrect);
   //2. check if password is correct or not
-  if (!user.checkPassword(req.body.currentPassword, user.password))
+  if (!isPasswordCorrect)
     return next(new AppError("Your current password is invalid", 400));
 
   //3. if yes, then change the password
