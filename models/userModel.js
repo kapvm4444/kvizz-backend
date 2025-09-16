@@ -8,11 +8,11 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      require: [true, "User must enter name"],
+      required: [true, "User must enter name"],
     },
     email: {
       type: String,
-      require: [true, "User must enter email"],
+      required: [true, "User must enter email"],
       unique: [true, "Email already in use"],
       lowercase: true,
       validate: [validator.isEmail, "Please enter a valid email"],
@@ -33,14 +33,14 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      require: [true, "User must enter password"],
+      required: [true, "User must enter password"],
       minlength: [8, "Password Length must be at least 8 characters"],
       maxlength: 64,
       select: false,
     },
     passwordConfirm: {
       type: String,
-      require: [true, "User must enter password"],
+      required: [true, "User must enter password"],
       minlength: 8,
       maxlength: 64,
       validate: {
