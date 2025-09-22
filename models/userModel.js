@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
     photo: {
       type: String,
       default: () =>
-        `https://api.dicebear.com/9.x/big-smile/svg?seed=${this._id}`,
+        `https://api.dicebear.com/9.x/big-smile/svg?seed=${this.email}`,
     },
     password: {
       type: String,
