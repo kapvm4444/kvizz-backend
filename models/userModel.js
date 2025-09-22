@@ -29,8 +29,9 @@ const userSchema = new mongoose.Schema(
     username: String,
     photo: {
       type: String,
-      default: () =>
-        `https://api.dicebear.com/9.x/big-smile/svg?seed=${this.email}`,
+      default: function () {
+        `https://api.dicebear.com/9.x/big-smile/svg?seed=${this._id}`;
+      },
     },
     password: {
       type: String,
