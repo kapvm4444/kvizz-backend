@@ -180,7 +180,7 @@ userSchema.methods.isPasswordChangedAfter = function (JWTTokenTime) {
 
 //=> getting the password reset token [simply generating and returning the token]
 userSchema.methods.getPasswordResetToken = function () {
-  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetToken = crypto.randomBytes(3).toString("hex").toUpperCase();
 
   this.passwordResetToken = crypto
     .createHash("sha256")

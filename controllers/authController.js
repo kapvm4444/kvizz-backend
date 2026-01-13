@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const User = require("./../models/userModel");
 const catchAsync = require("./../utils/catchAsync");
 const AppError = require("./../utils/appError");
+const { sendEmail } = require("../utils/email");
 
 //Label
 // utility methods
@@ -151,12 +152,15 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user) return next(new AppError("There is no user with that email", 404));
 
+  const email = user.email;
   //2. Generate the password reset token
   const passwordResetToken = user.getPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
   //3.send the token to user's email
   try {
+    await sendEmail(email, passwordResetToken, user.name);
+
     res.status(200).json({
       status: "success",
       message:
@@ -167,6 +171,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     user.passwordResetExpires = undefined;
     user.passwordResetToken = undefined;
     await user.save({ validateBeforeSave: false });
+    console.log(e.errorMessage);
+    console.log(e.stack);
 
     return next(
       new AppError(
@@ -183,7 +189,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   //1. check if user available based on token
   const HashedResetToken = crypto
     .createHash("sha256")
-    .update(req.params.token)
+    .update(req.body.token)
     .digest("hex");
 
   const user = await User.findOne({

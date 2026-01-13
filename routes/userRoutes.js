@@ -12,7 +12,7 @@ router.get("/logout", authController.logout);
 
 //=> forgot and reset password (for non-logged in users)
 router.post("/forgot-password", authController.forgotPassword);
-router.patch("/reset-password/:token", authController.resetPassword);
+router.patch("/reset-password", authController.resetPassword);
 
 router.use(authController.protect);
 
