@@ -213,10 +213,12 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 //=>
 // Update the user password without prompting forgot password [for logged in users]
 exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, newPassword, NewPasswordConfirm } = req.body;
+  const { currentPassword, newPassword, newPasswordConfirm } = req.body;
 
   //1. get the user from collection
-  const user = await User.findById(req.user._id).select("+password");
+  const user = await User.findById(req.user._id)
+    .select("+password")
+    .select("+passwordConfirm");
   if (!user)
     return next(new AppError("Invalid JWT token, please log in again", 400));
 
@@ -239,10 +241,9 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     return next(
       new AppError("New password can not be same as the current Password", 400),
     );
-
   //3. if yes, then change the password
   user.password = newPassword;
-  user.passwordConfirm = NewPasswordConfirm;
+  user.passwordConfirm = newPasswordConfirm;
   const updatedUser = await user.save();
 
   //4. log user in again with JWT

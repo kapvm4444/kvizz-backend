@@ -122,12 +122,6 @@ userSchema.virtual("ownedQuizzes", {
 
 //LABEL
 // HOOKS
-//=> filter to get only active users
-userSchema.pre(/^find/, function (next) {
-  this.find({ active: true });
-  next();
-});
-
 //=> Password Encryption logic
 userSchema.pre("save", async function (next) {
   //check if 'password' field is modified or not
@@ -145,6 +139,12 @@ userSchema.pre("save", function (next) {
   if (!this.isModified("password") || this.isNew) return next();
 
   this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+//=> filter to get only active users
+userSchema.pre(/^find/, function (next) {
+  this.find({ active: true });
   next();
 });
 
