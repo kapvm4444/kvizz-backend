@@ -52,7 +52,7 @@ exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   let filter = { email: email };
-  if (email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/))
+  if (!email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/))
     filter = { username: email, email: undefined };
 
   //1. check if password and email exists in req.body or not
