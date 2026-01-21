@@ -51,12 +51,16 @@ exports.signUp = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
+  let filter = { email: email };
+  if (email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/))
+    filter = { username: email, email: undefined };
+
   //1. check if password and email exists in req.body or not
   if (!email || !password)
     return next(new AppError("Please provide email and password both", 400));
 
   //2. check if user exist, and check if password is correct or not
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne(filter).select("+password");
 
   if (!user || !(await user.checkPassword(password, user.password)))
     return next(new AppError("Email or Password incorrect", 401));
